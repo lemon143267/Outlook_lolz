@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Mail Manager</title>
+  <style>
+    :root {
+      --bg: #121214;
+      --sidebar-bg: #18181b;
+      --card-bg: #27272a;
+      --card-inner: #1e1e22;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --border: #3f3f46;
+      --accent: #3b82f6;
+    }
+    [data-theme="light"] {
+      --bg: #f4f4f5;
+      --sidebar-bg: #ffffff;
+      --card-bg: #e4e4e7;
+      --card-inner: #f1f1f4;
+      --text: #18181b;
+      --text-muted: #71717a;
+      --border: #d4d4d8;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .nav-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text);
+      padding: 10px 14px;
+      text-align: left;
+      cursor: pointer;
+      font-size: 15px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .nav-btn.active, .nav-btn:hover { background: var(--card-bg); border-color: var(--border); }
+    .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
+    .theme-toggle {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .profile-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      background: var(--card-bg);
+      border-radius: 8px;
+    }
+    .avatar-wrapper { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+    .avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #555; }
+    .avatar-input {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0; cursor: pointer;
+    }
+    .username { font-size: 14px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .content { flex: 1; padding: 30px; overflow-y: auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    textarea, input[type="text"], select, button { display: block; width: 100%; margin-bottom: 12px; border-radius: 6px; }
+    textarea, input[type="text"], select {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    textarea { resize: vertical; font-family: monospace; font-size: 13px; }
+    .action-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .card {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .group-filter-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    .group-select {
+      width: auto;
+      margin-bottom: 0;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .btn-delete-group {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      width: auto;
+      margin-bottom: 0;
+    }
+
+    .account-wrapper {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .account-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .account-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .account-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .account-email { font-weight: 500; }
+    
+    .badge-reg {
+      background: #15803d;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .badge-group {
+      background: #3b82f6;
+      color: #ffffff;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-action {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      margin-bottom: 0;
+      transition: opacity 0.15s;
+    }
+    .btn-action:hover { opacity: 0.85; }
+    .btn-copy-red { background: #ef4444; color: #fff; }
+    .btn-copy-green { background: #22c55e; color: #fff; }
+    .btn-delete-acc { background: #52525b; color: #fff; }
+
+    .account-messages-panel {
+      display: none;
+      padding: 14px 16px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    .account-messages-panel.open {
+      display: block;
+    }
+
+    .send-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 20px 0 10px;
+    }
+    .btn-small {
+      width: auto;
+      margin-bottom: 0;
+      padding: 6px 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .send-account-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .send-account-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .send-account-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+
+    .credits-box {
+      max-width: 500px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-top: 15px;
+    }
+    .credits-box a {
+      color: var(--accent);
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .credits-box a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <button class="nav-btn active" onclick="switchTab('tab-mails', this)">Почты</button>
+    <button class="nav-btn" onclick="switchTab('tab-send', this)">Отправка</button>
+    <button class="nav-btn" onclick="switchTab('tab-login', this)">Вход в почты</button>
+    <button class="nav-btn" onclick="switchTab('tab-credits', this)">Кредиты</button>
+
+    <div class="sidebar-bottom">
+      <button class="theme-toggle" onclick="toggleTheme()">Белая/черная тема</button>
+      
+      <div class="profile-card">
+        <div class="avatar-wrapper" title="Нажмите, чтобы загрузить аватар">
+          <img id="avatar-img" class="avatar" alt="Avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='%23888'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>">
+          <input type="file" id="avatar-file" class="avatar-input" accept="image/*">
+        </div>
+        <span class="username">By lemon143267</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- Вкладка 1: Почты -->
+    <div id="tab-mails" class="tab-content active">
+      <h2>Мои ящики</h2>
+      
+      <div class="group-filter-bar">
+        <span>Группа:</span>
+        <select id="filter-group-select" class="group-select" onchange="renderFilteredAccounts()">
+          <option value="ALL">Все группы</option>
+        </select>
+        <button id="btn-delete-current-group" class="btn-delete-group" style="display: none;" onclick="deleteCurrentGroup()">Удалить группу</button>
+      </div>
+
+      <div id="accounts-list"></div>
+    </div>
+
+    <!-- Вкладка 2: Отправка -->
+    <div id="tab-send" class="tab-content" style="max-width: 650px;">
+      <h2>Массовая отправка писем</h2>
+      
+      <div style="margin-top: 15px;">
+        <input type="text" id="bulk-send-to" placeholder="Кому (например: recipient@gmail.com)">
+        <input type="text" id="bulk-send-subject" placeholder="Тема письма">
+        <textarea id="bulk-send-body" rows="6" placeholder="Текст письма..."></textarea>
+        
+        <div class="send-list-header">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span>Группа:</span>
+            <select id="send-group-filter" class="group-select" onchange="filterSendList()">
+              <option value="ALL">Все группы</option>
+            </select>
+          </div>
+          <button class="btn-small" onclick="toggleSelectAll()">Выбрать все / Снять</button>
+        </div>
+        
+        <div id="send-accounts-list"></div>
+
+        <button class="action-btn" id="bulk-send-btn" style="margin-top: 15px;" onclick="submitBulkSend()">Отправить письмо с выбранных ящиков</button>
+        <div id="bulk-send-status" style="font-size: 14px; margin-top: 8px;"></div>
+      </div>
+    </div>
+
+    <!-- Вкладка 3: Вход в почты / Импорт -->
+    <div id="tab-login" class="tab-content" style="max-width: 650px;">
+      <h2>Массовое добавление почт</h2>
+      
+      <label style="display:block; margin: 12px 0 6px; font-weight: bold; font-size: 14px;">Группа для новых аккаунтов:</label>
+      <input type="text" id="new-group-name" placeholder="Название группы" value="Основная">
+
+      <p style="color: var(--text-muted); margin: 10px 0 15px; font-size: 14px;">
+        Поддерживаемые форматированные строки (разделители <code>:</code>, <code>|</code>, <code>;</code>, табуляция):<br>
+        <code>email|password|refresh_token|client_id</code>
+      </p>
+      
+      <textarea id="bulk-input" rows="10" placeholder="user@hotmail.com|password|refresh_token|client_id"></textarea>
+      <button class="action-btn" id="import-btn" onclick="importAccounts()">Загрузить аккаунты</button>
+      <div id="import-status" style="font-size: 14px; margin-top: 10px;"></div>
+    </div>
+
+    <!-- Вкладка 4: Кредиты -->
+    <div id="tab-credits" class="tab-content">
+      <h2>Кредиты</h2>
+      <div class="credits-box">
+        <p style="margin-bottom: 12px; font-size: 15px;">Разработчик: <strong>lemon143267</strong></p>
+        <p style="font-size: 14px; color: var(--text-muted);">
+          Профиль LOLZ: 
+          <a href="https://lolz.team/members/5957846/" target="_blank" rel="noopener noreferrer">https://lolz.team/members/5957846/</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let accountsCache = [];
+
+    function switchTab(id, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+      
+      if (id === 'tab-mails') loadAccounts();
+      if (id === 'tab-send') renderSendAccounts();
+    }
+
+    function toggleTheme() {
+      const current = document.body.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      document.body.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    }
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', savedTheme);
+
+    const avatarInput = document.getElementById('avatar-file');
+    const avatarImg = document.getElementById('avatar-img');
+    avatarInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          avatarImg.src = ev.target.result;
+          localStorage.setItem('user-avatar', ev.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    const savedAvatar = localStorage.getItem('user-avatar');
+    if (savedAvatar) avatarImg.src = savedAvatar;
+
+    async function loadAccounts() {
+      try {
+        const res = await fetch('/api/accounts');
+        if (!res.ok) return;
+        accountsCache = await res.json();
+        updateGroupDropdowns();
+        renderFilteredAccounts();
+      } catch (err) {
+        // silent fail for polling/network
+      }
+    }
+
+    function updateGroupDropdowns() {
+      const groups = Array.from(new Set(accountsCache.map(a => a.group_name || 'Основная')));
+      
+      const filterSelect = document.getElementById('filter-group-select');
+      const currentVal = filterSelect.value;
+      filterSelect.innerHTML = '<option value="ALL">Все группы</option>';
+      groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        filterSelect.appendChild(opt);
+      });
+      if (groups.includes(currentVal)) filterSelect.value = currentVal;
+
+      const sendFilter = document.getElementById('send-group-filter');
+      const currentSendVal = sendFilter.value;
+      sendFilter.innerHTML = '<option value="ALL">Все группы</option>';
+      groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        sendFilter.appendChild(opt);
+      });
+      if (groups.includes(currentSendVal)) sendFilter.value = currentSendVal;
+    }
+
+    function renderFilteredAccounts() {
+      const selectedGroup = document.getElementById('filter-group-select').value;
+      const btnDeleteGroup = document.getElementById('btn-delete-current-group');
+      btnDeleteGroup.style.display = (selectedGroup !== 'ALL') ? 'inline-block' : 'none';
+
+      const container = document.getElementById('accounts-list');
+      container.innerHTML = '';
+
+      const filtered = selectedGroup === 'ALL' 
+        ? accountsCache 
+        : accountsCache.filter(a => (a.group_name || 'Основная') === selectedGroup);
+
+      if (!filtered.length) {
+        container.innerHTML = '<p style="color: var(--text-muted)">Нет ящиков в этой группе.</p>';
+        return;
+      }
+
+      filtered.forEach(acc => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'account-wrapper';
+        wrapper.id = `acc-wrapper-${acc.id}`;
+
+        const row = document.createElement('div');
+        row.className = 'account-row';
+
+        const info = document.createElement('div');
+        info.className = 'account-info';
+
+        let checkMark = '📫 ';
+        if (!acc.is_valid) {
+          checkMark = '❌ ';
+        } else if (acc.is_registered) {
+          checkMark = '✅ ';
+        }
+
+        const badgeReg = acc.is_registered ? '<span class="badge-reg">регнуто</span>' : '';
+        const badgeInvalid = !acc.is_valid ? '<span class="badge-reg" style="background: #dc2626;">невалид</span>' : '';
+        const badgeGroup = `<span class="badge-group">${acc.group_name || 'Основная'}</span>`;
+
+        info.innerHTML = `
+          <span class="account-icon">${checkMark}</span>
+          <span class="account-email" style="${!acc.is_valid ? 'opacity: 0.7;' : ''}">${acc.email}</span>
+          ${badgeGroup}
+          <span class="badge-container">${badgeReg} ${badgeInvalid}</span>
+        `;
+
+        info.onclick = () => toggleAccountMessages(acc.id, acc.email);
+
+        const actions = document.createElement('div');
+        actions.className = 'row-actions';
+
+        const btnRed = document.createElement('button');
+        btnRed.className = 'btn-action btn-copy-red';
+        btnRed.title = 'Копировать почту';
+        btnRed.innerHTML = '📋';
+        btnRed.onclick = (e) => {
+          e.stopPropagation();
+          copyToClipboard(acc.email);
+        };
+
+        const btnGreen = document.createElement('button');
+        btnGreen.className = 'btn-action btn-copy-green';
+        btnGreen.title = 'Копировать почта:пароль и отметить';
+        btnGreen.innerHTML = '✔';
+        btnGreen.onclick = async (e) => {
+          e.stopPropagation();
+          await copyToClipboard(`${acc.email}:${acc.password}`);
+          info.querySelector('.account-icon').textContent = '✅ ';
+          info.querySelector('.badge-container').innerHTML = '<span class="badge-reg">регнуто</span>';
+          fetch(`/api/accounts/${acc.id}/mark-registered`, { method: 'POST' });
+        };
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'btn-action btn-delete-acc';
+        btnDelete.title = 'Удалить аккаунт';
+        btnDelete.innerHTML = '🗑️';
+        btnDelete.onclick = async (e) => {
+          e.stopPropagation();
+          if (confirm(`Удалить почту ${acc.email}?`)) {
+            await fetch(`/api/accounts/${acc.id}`, { method: 'DELETE' });
+            await loadAccounts();
+          }
+        };
+
+        actions.appendChild(btnRed);
+        actions.appendChild(btnGreen);
+        actions.appendChild(btnDelete);
+
+        row.appendChild(info);
+        row.appendChild(actions);
+
+        const panel = document.createElement('div');
+        panel.className = 'account-messages-panel';
+        panel.id = `messages-panel-${acc.id}`;
+
+        wrapper.appendChild(row);
+        wrapper.appendChild(panel);
+        container.appendChild(wrapper);
+      });
+    }
+
+    async function deleteCurrentGroup() {
+      const selectedGroup = document.getElementById('filter-group-select').value;
+      if (selectedGroup === 'ALL') return;
+
+      if (confirm(`Удалить группу «${selectedGroup}» и все аккаунты в ней?`)) {
+        await fetch(`/api/groups/${encodeURIComponent(selectedGroup)}`, { method: 'DELETE' });
+        document.getElementById('filter-group-select').value = 'ALL';
+        await loadAccounts();
+      }
+    }
+
+    function toggleAccountMessages(id, email) {
+      const panel = document.getElementById(`messages-panel-${id}`);
+      const isOpen = panel.classList.contains('open');
+
+      document.querySelectorAll('.account-messages-panel').forEach(p => {
+        p.classList.remove('open');
+        p.innerHTML = '';
+      });
+
+      if (!isOpen) {
+        panel.classList.add('open');
+        loadMessages(id, email, 'inbox');
+      }
+    }
+
+    async function loadMessages(id, name, folder = 'inbox') {
+      const box = document.getElementById(`messages-panel-${id}`);
+      if (!box) return;
+
+      const folderTitle = folder === 'junk' ? 'Нежелательная почта' : 'Входящие';
+
+      box.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <strong style="font-size: 14px;">Папка:</strong>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-small" style="${folder === 'inbox' ? 'background: var(--accent); color: #fff;' : ''}" onclick="loadMessages(${id}, '${name}', 'inbox')">📥 Входящие</button>
+            <button class="btn-small" style="${folder === 'junk' ? 'background: var(--accent); color: #fff;' : ''}" onclick="loadMessages(${id}, '${name}', 'junk')">🚫 Нежелательная почта</button>
+          </div>
+        </div>
+        <p style="color: var(--text-muted); font-size: 13px;">Загрузка писем (${folderTitle})...</p>
+      `;
+
+      try {
+        const res = await fetch(`/api/accounts/${id}/messages?folder=${folder}`);
+        if (!res.ok) throw new Error();
+        const msgs = await res.json();
+
+        box.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <strong style="font-size: 14px;">Письма: <span style="font-weight: normal; color: var(--text-muted);">(${folderTitle})</span></strong>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-small" style="${folder === 'inbox' ? 'background: var(--accent); color: #fff;' : ''}" onclick="loadMessages(${id}, '${name}', 'inbox')">📥 Входящие</button>
+              <button class="btn-small" style="${folder === 'junk' ? 'background: var(--accent); color: #fff;' : ''}" onclick="loadMessages(${id}, '${name}', 'junk')">🚫 Нежелательная почта</button>
+            </div>
+          </div>
+        `;
+
+        if (!msgs.length) {
+          box.innerHTML += `<p style="color: var(--text-muted); font-size: 13px;">В папке «${folderTitle}» писем нет.</p>`;
+          return;
+        }
+
+        msgs.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `
+            <div style="font-size: 13px;"><strong>От:</strong> ${m.sender?.emailAddress?.name || 'Неизвестно'} (${m.sender?.emailAddress?.address || ''})</div>
+            <div style="font-size: 13px; margin: 3px 0;"><strong>Тема:</strong> ${m.subject || 'Без темы'}</div>
+            <p style="margin-top: 4px; font-size: 12px; color: var(--text-muted); white-space: pre-wrap;">${m.bodyPreview || ''}</p>
+          `;
+          box.appendChild(div);
+        });
+      } catch {
+        box.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <strong style="font-size: 14px;">Ошибка</strong>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-small" onclick="loadMessages(${id}, '${name}', 'inbox')">📥 Входящие</button>
+              <button class="btn-small" onclick="loadMessages(${id}, '${name}', 'junk')">🚫 Нежелательная почта</button>
+            </div>
+          </div>
+          <p style="color: #ef4444; font-size: 13px;">Не удалось загрузить письма. Возможно, токен истек или аккаунт заблокирован.</p>
+        `;
+      }
+    }
+
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const fallback = document.createElement('textarea');
+        fallback.value = text;
+        document.body.appendChild(fallback);
+        fallback.select();
+        document.execCommand('copy');
+        document.body.removeChild(fallback);
+      }
+    }
+
+    async function renderSendAccounts() {
+      if (!accountsCache.length) {
+        const res = await fetch('/api/accounts');
+        if (res.ok) accountsCache = await res.json();
+      }
+      updateGroupDropdowns();
+      filterSendList();
+    }
+
+    function filterSendList() {
+      const selectedGroup = document.getElementById('send-group-filter').value;
+      const container = document.getElementById('send-accounts-list');
+      container.innerHTML = '';
+
+      const filtered = selectedGroup === 'ALL'
+        ? accountsCache
+        : accountsCache.filter(a => (a.group_name || 'Основная') === selectedGroup);
+
+      if (!filtered.length) {
+        container.innerHTML = '<p style="color: var(--text-muted)">Нет ящиков для отображения.</p>';
+        return;
+      }
+
+      filtered.forEach(acc => {
+        const item = document.createElement('label');
+        item.className = 'send-account-item';
+        item.innerHTML = `
+          <div class="send-account-item-left">
+            <input type="checkbox" class="send-checkbox" value="${acc.id}">
+            <span>${acc.email}</span>
+          </div>
+          <span class="badge-group">${acc.group_name || 'Основная'}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function toggleSelectAll() {
+      const boxes = document.querySelectorAll('.send-checkbox');
+      const allChecked = Array.from(boxes).every(b => b.checked);
+      boxes.forEach(b => b.checked = !allChecked);
+    }
+
+    async function submitBulkSend() {
+      const to = document.getElementById('bulk-send-to').value.trim();
+      const subject = document.getElementById('bulk-send-subject').value.trim();
+      const body = document.getElementById('bulk-send-body').value.trim();
+      const status = document.getElementById('bulk-send-status');
+      const btn = document.getElementById('bulk-send-btn');
+
+      const selectedIds = Array.from(document.querySelectorAll('.send-checkbox:checked'))
+        .map(b => parseInt(b.value));
+
+      if (!to) {
+        status.style.color = '#ef4444';
+        status.textContent = 'Укажите адрес получателя';
+        return;
+      }
+      if (!selectedIds.length) {
+        status.style.color = '#ef4444';
+        status.textContent = 'Выберите хотя бы одну почту из списка';
+        return;
+      }
+
+      btn.disabled = true;
+      status.style.color = 'var(--text-muted)';
+      status.textContent = `Отправка с ${selectedIds.length} ящиков...`;
+
+      try {
+        const res = await fetch('/api/accounts/bulk-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            account_ids: selectedIds,
+            to_email: to,
+            subject: subject,
+            body: body
+          })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          status.style.color = '#22c55e';
+          status.textContent = `Успешно отправлено: ${data.sent}. Ошибок: ${data.failed}.`;
+        } else {
+          status.style.color = '#ef4444';
+          status.textContent = data.detail || 'Ошибка при отправке';
+        }
+      } catch {
+        status.style.color = '#ef4444';
+        status.textContent = 'Ошибка подключения к серверу';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function importAccounts() {
+      const text = document.getElementById('bulk-input').value.trim();
+      const groupName = document.getElementById('new-group-name').value.trim() || 'Основная';
+      const status = document.getElementById('import-status');
+      const btn = document.getElementById('import-btn');
+
+      if (!text) {
+        alert('Вставьте хотя бы одну строку');
+        return;
+      }
+
+      btn.disabled = true;
+      status.style.color = 'var(--text-muted)';
+      status.textContent = `Импорт в группу «${groupName}»...`;
+
+      try {
+        const res = await fetch('/api/accounts/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw_data: text, group_name: groupName })
+        });
+
+        if (res.status === 401) {
+          status.style.color = '#ef4444';
+          status.textContent = 'Ошибка авторизации. Обновите страницу.';
+          return;
+        }
+
+        const data = await res.json();
+
+        if (res.ok) {
+          status.style.color = '#22c55e';
+          status.textContent = `Добавлено: ${data.added}. Не распознано: ${data.failed}.`;
+          document.getElementById('bulk-input').value = '';
+          await loadAccounts();
+        } else {
+          status.style.color = '#ef4444';
+          status.textContent = data.detail || 'Ошибка импорта';
+        }
+      } catch {
+        status.style.color = '#ef4444';
+        status.textContent = 'Ошибка подключения к серверу';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    loadAccounts();
+  </script>
+</body>
+</html>
